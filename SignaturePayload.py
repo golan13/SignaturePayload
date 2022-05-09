@@ -14,7 +14,7 @@ def merge_data_into_file(file_path, data_path, new_name):
     print("[*] Size of data to be written -", hex(len(data_content)))
     print("[*] Merging data in memory")
     new_content = file_content + data_content
-    padding = b"\x00" * (4 - len(data_content) % 4)
+    padding = b"\x00" * (16 - len(data_content) % 16)
     new_content += padding
     pe = pefile.PE(data=new_content)
     data_directory = pe.OPTIONAL_HEADER.DATA_DIRECTORY
